@@ -261,9 +261,8 @@ function App() {
       if (res.case_id) {
         await handleOpenCaseDetails(res.case_id);
       }
-      alert(`Recovery Case ${res.case_id} created with revenue ₹${Number(res.amount).toLocaleString('en-IN')}!`);
     } catch (err) {
-      alert(`Failed to create custom case: ${err.message}`);
+      console.error('Failed to create custom case:', err);
     } finally {
       setProcessingText('');
       setLoading(false);
@@ -399,11 +398,10 @@ function App() {
     setProcessingText(`Running AI recovery orchestration for case ${caseId}...`);
     try {
       const result = await api.runCase(caseId);
-      alert(`Recovery workflow completed! Final status: ${result.final_status}`);
       await handleOpenCaseDetails(caseId);
       await fetchData(true);
     } catch (err) {
-      alert(`Failed to run recovery workflow: ${err.message}`);
+      console.error('Failed to run recovery workflow:', err);
     } finally {
       setProcessingText('');
       setLoading(false);
