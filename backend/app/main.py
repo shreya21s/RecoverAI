@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api import health, demo, cases, approvals, batches, audit
+from app.api import health, demo, cases, approvals, batches, audit, policy
 from app.db.init_db import init_db
 from app.db.database import SessionLocal
 from app.data.seed_data import seed_demo_data
@@ -36,6 +36,7 @@ app.include_router(cases.router)
 app.include_router(approvals.router)
 app.include_router(batches.router)
 app.include_router(audit.router)
+app.include_router(policy.router)
 
 # Root endpoint
 @app.get("/")

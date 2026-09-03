@@ -6,6 +6,7 @@ from app.schemas.customer_analysis import CustomerAnalysisResult
 from app.schemas.strategy import StrategyResult
 from app.schemas.recovery_result import RecoveryResult, ActionResultSchema
 from app.schemas.policy import PolicyResultSchema
+from app.schemas.custom_case import CreateCustomCaseRequest, CreateCustomCaseResponse
 
 __all__ = [
     "Customer",
@@ -20,4 +21,7 @@ __all__ = [
     "RecoveryResult",
     "ActionResultSchema",
     "PolicyResultSchema",
+    "CreateCustomCaseRequest",
+    "CreateCustomCaseResponse",
 ]
+

@@ -33,6 +33,11 @@ export const api = {
   // Recovery Cases
   getCases: () => request('/api/cases'),
   getCase: (caseId) => request(`/api/cases/${caseId}`),
+  createCase: (caseData) =>
+    request('/api/cases', {
+      method: 'POST',
+      body: JSON.stringify(caseData),
+    }),
   runCase: (caseId) => request(`/api/cases/${caseId}/run`, { method: 'POST' }),
   triggerScheduled: (caseId) => request(`/api/cases/${caseId}/trigger_scheduled`, { method: 'POST' }),
 
@@ -64,4 +69,13 @@ export const api = {
   // Audit Trails
   getCaseAuditTrail: (caseId) => request(`/api/audit/cases/${caseId}`),
   getBatchAuditTrail: (batchId) => request(`/api/audit/batches/${batchId}`),
+
+  // Policy Rules Studio
+  getPolicyConfig: () => request('/api/policy/config'),
+  updatePolicyConfig: (config) =>
+    request('/api/policy/config', {
+      method: 'PUT',
+      body: JSON.stringify(config),
+    }),
+  resetPolicyConfig: () => request('/api/policy/reset', { method: 'POST' }),
 };

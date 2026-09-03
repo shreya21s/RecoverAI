@@ -19,7 +19,22 @@ import {
   Lock,
   ShieldAlert,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Sparkles,
+  X,
+  Zap,
+  UserPlus,
+  DollarSign,
+  Sliders,
+  Filter,
+  CheckSquare,
+  Square,
+  ChevronLeft,
+  ChevronRight,
+  RotateCcw,
+  Save,
+  Layers,
+  ListFilter
 } from 'lucide-react';
 import { api } from './api';
 import { StatusBadge } from './components/StatusBadge';
@@ -70,9 +85,190 @@ function App() {
   // Audit Trails State
   const [auditEvents, setAuditEvents] = useState([]);
   const [expandedEventId, setExpandedEventId] = useState(null);
+  const [auditSearch, setAuditSearch] = useState('');
+  const [auditActorFilter, setAuditActorFilter] = useState('ALL');
+  const [auditPage, setAuditPage] = useState(1);
+  const [auditPageSize, setAuditPageSize] = useState(15);
   
   // Batch Impact Modal State
   const [selectedBatchImpact, setSelectedBatchImpact] = useState(null);
+
+  // Search, Filters & Pagination State for Recovery Cases
+  const [caseSearch, setCaseSearch] = useState('');
+  const [caseStatusFilter, setCaseStatusFilter] = useState('ALL');
+  const [caseFailureFilter, setCaseFailureFilter] = useState('ALL');
+  const [casePage, setCasePage] = useState(1);
+  const [casePageSize, setCasePageSize] = useState(10);
+  const [selectedCaseIds, setSelectedCaseIds] = useState(new Set());
+  const [isBatchBuilderOpen, setIsBatchBuilderOpen] = useState(false);
+  const [customBatchName, setCustomBatchName] = useState('Custom Recovery Portfolio');
+
+  // Policy Rules Studio State
+  const [policyConfig, setPolicyConfig] = useState({
+    MAX_RETRIES: 3,
+    MAX_REMINDERS: 3,
+    MIN_RECOVERY_PROBABILITY: 0.15,
+    HITL_AMOUNT_THRESHOLD: 50000,
+    HITL_CONFIDENCE_THRESHOLD: 0.70,
+    HITL_FAILED_ATTEMPTS_THRESHOLD: 2,
+    SIMULATION_MODE: true
+  });
+  const [policyFeedback, setPolicyFeedback] = useState(null);
+  const [testPolicyAmount, setTestPolicyAmount] = useState(65000);
+  const [testPolicyRetries, setTestPolicyRetries] = useState(0);
+
+  // Custom Case / Personalized Revenue Intake Modal State
+  const [isCustomCaseModalOpen, setIsCustomCaseModalOpen] = useState(false);
+  const [customCaseForm, setCustomCaseForm] = useState({
+    amount: 15000,
+    currency: 'INR',
+    payment_method: 'UPI',
+    failure_code: 'TEMPORARY_BANK_FAILURE',
+    retry_count: 0,
+    reminder_count: 0,
+    is_disputed: false,
+    customer_name: 'Aditi Rao',
+    customer_segment: 'HIGH_VALUE_RELIABLE',
+    customer_ltv: 120000,
+    successful_payments: 15,
+    failed_payments: 1,
+    engagement_score: 9.0,
+    auto_run: true
+  });
+
+  const PRESETS = [
+    {
+      name: '💎 High-Value VIP',
+      badge: 'HITL Review (>₹50k)',
+      data: {
+        amount: 85000,
+        customer_name: 'Vikramaditya Singhania',
+        customer_segment: 'HIGH_VALUE_RELIABLE',
+        customer_ltv: 350000,
+        successful_payments: 28,
+        failed_payments: 1,
+        engagement_score: 9.6,
+        payment_method: 'NETBANKING',
+        failure_code: 'TEMPORARY_BANK_FAILURE',
+        retry_count: 0,
+        reminder_count: 0,
+        is_disputed: false
+      }
+    },
+    {
+      name: '⚡ Quick Recovery',
+      badge: 'Auto Retry (₹4.5k)',
+      data: {
+        amount: 4500,
+        customer_name: 'Ananya Deshmukh',
+        customer_segment: 'RELIABLE',
+        customer_ltv: 60000,
+        successful_payments: 12,
+        failed_payments: 1,
+        engagement_score: 8.5,
+        payment_method: 'UPI',
+        failure_code: 'TEMPORARY_BANK_FAILURE',
+        retry_count: 0,
+        reminder_count: 0,
+        is_disputed: false
+      }
+    },
+    {
+      name: '🛒 Cart Abandonment',
+      badge: 'Payment Link (₹2.8k)',
+      data: {
+        amount: 2800,
+        customer_name: 'Rahul Sen',
+        customer_segment: 'AVERAGE',
+        customer_ltv: 30000,
+        successful_payments: 6,
+        failed_payments: 2,
+        engagement_score: 6.0,
+        payment_method: 'CARD',
+        failure_code: 'PAYMENT_ABANDONED',
+        retry_count: 0,
+        reminder_count: 0,
+        is_disputed: false
+      }
+    },
+    {
+      name: '⚠️ High-Risk Multi-Retry',
+      badge: 'Policy Hard Stop',
+      data: {
+        amount: 9500,
+        customer_name: 'Karan Mehra',
+        customer_segment: 'AT_RISK',
+        customer_ltv: 18000,
+        successful_payments: 2,
+        failed_payments: 4,
+        engagement_score: 3.0,
+        payment_method: 'CARD',
+        failure_code: 'REPEATED_FAILURE',
+        retry_count: 3,
+        reminder_count: 3,
+        is_disputed: false
+      }
+    },
+    {
+      name: '🛡️ Disputed Charge',
+      badge: 'Dispute Intercept',
+      data: {
+        amount: 14000,
+        customer_name: 'Pooja Hegde',
+        customer_segment: 'AVERAGE',
+        customer_ltv: 45000,
+        successful_payments: 5,
+        failed_payments: 1,
+        engagement_score: 5.5,
+        payment_method: 'CARD',
+        failure_code: 'AUTHENTICATION_FAILED',
+        retry_count: 1,
+        reminder_count: 0,
+        is_disputed: true
+      }
+    }
+  ];
+
+  const handleApplyPreset = (presetData) => {
+    setCustomCaseForm(prev => ({
+      ...prev,
+      ...presetData
+    }));
+  };
+
+  const handleCreateCustomCase = async (e) => {
+    if (e) e.preventDefault();
+    if (!customCaseForm.amount || Number(customCaseForm.amount) <= 0) {
+      alert('Please enter a valid revenue amount (> ₹0)');
+      return;
+    }
+    setLoading(true);
+    setProcessingText(customCaseForm.auto_run ? 'Creating case & running AI agent graph...' : 'Creating custom recovery case...');
+    try {
+      const payload = {
+        ...customCaseForm,
+        amount: parseFloat(customCaseForm.amount),
+        customer_ltv: parseFloat(customCaseForm.customer_ltv || 0),
+        successful_payments: parseInt(customCaseForm.successful_payments || 0, 10),
+        failed_payments: parseInt(customCaseForm.failed_payments || 0, 10),
+        retry_count: parseInt(customCaseForm.retry_count || 0, 10),
+        reminder_count: parseInt(customCaseForm.reminder_count || 0, 10),
+        engagement_score: parseFloat(customCaseForm.engagement_score || 5.0)
+      };
+      const res = await api.createCase(payload);
+      setIsCustomCaseModalOpen(false);
+      await fetchData(true);
+      if (res.case_id) {
+        await handleOpenCaseDetails(res.case_id);
+      }
+      alert(`Recovery Case ${res.case_id} created with revenue ₹${Number(res.amount).toLocaleString('en-IN')}!`);
+    } catch (err) {
+      alert(`Failed to create custom case: ${err.message}`);
+    } finally {
+      setProcessingText('');
+      setLoading(false);
+    }
+  };
 
   const handleOpenBatchImpact = async (batchId) => {
     try {
@@ -315,9 +511,112 @@ function App() {
     }
   };
 
+  const fetchPolicyConfig = async () => {
+    try {
+      const cfg = await api.getPolicyConfig();
+      setPolicyConfig(cfg);
+    } catch (e) {
+      console.error("Failed to load policy config", e);
+    }
+  };
+
+  const handleSavePolicy = async () => {
+    setLoading(true);
+    setProcessingText('Saving policy thresholds...');
+    try {
+      const updated = await api.updatePolicyConfig(policyConfig);
+      setPolicyConfig(updated);
+      setPolicyFeedback({ type: 'success', message: 'Policy rules and safety thresholds updated successfully!' });
+      setTimeout(() => setPolicyFeedback(null), 4000);
+    } catch (err) {
+      setPolicyFeedback({ type: 'error', message: `Failed to save policy: ${err.message}` });
+    } finally {
+      setProcessingText('');
+      setLoading(false);
+    }
+  };
+
+  const handleResetPolicy = async () => {
+    setLoading(true);
+    setProcessingText('Resetting policy thresholds to defaults...');
+    try {
+      const reset = await api.resetPolicyConfig();
+      setPolicyConfig(reset);
+      setPolicyFeedback({ type: 'success', message: 'Policy thresholds reset to system defaults.' });
+      setTimeout(() => setPolicyFeedback(null), 4000);
+    } catch (err) {
+      setPolicyFeedback({ type: 'error', message: `Failed to reset policy: ${err.message}` });
+    } finally {
+      setProcessingText('');
+      setLoading(false);
+    }
+  };
+
+  const handleToggleSelectCase = (caseId) => {
+    setSelectedCaseIds(prev => {
+      const next = new Set(prev);
+      if (next.has(caseId)) next.delete(caseId);
+      else next.add(caseId);
+      return next;
+    });
+  };
+
+  const handleSelectAllVisibleCases = () => {
+    const eligibleVisible = paginatedCases.filter(c => c.status !== 'RECOVERED' && c.status !== 'STOPPED').map(c => c.case_id);
+    const allSelected = eligibleVisible.length > 0 && eligibleVisible.every(id => selectedCaseIds.has(id));
+    setSelectedCaseIds(prev => {
+      const next = new Set(prev);
+      if (allSelected) {
+        eligibleVisible.forEach(id => next.delete(id));
+      } else {
+        eligibleVisible.forEach(id => next.add(id));
+      }
+      return next;
+    });
+  };
+
+  const handleSelectCategoryPreset = (category) => {
+    let matched = [];
+    if (category === 'ALL_ELIGIBLE') {
+      matched = cases.filter(c => c.status !== 'RECOVERED' && c.status !== 'STOPPED').map(c => c.case_id);
+    } else if (category === 'HIGH_VALUE') {
+      matched = cases.filter(c => (c.payment?.amount || 0) >= policyConfig.HITL_AMOUNT_THRESHOLD && c.status !== 'RECOVERED' && c.status !== 'STOPPED').map(c => c.case_id);
+    } else if (category === 'UPI') {
+      matched = cases.filter(c => c.payment?.payment_method === 'UPI' && c.status !== 'RECOVERED' && c.status !== 'STOPPED').map(c => c.case_id);
+    } else if (category === 'ABANDONMENT') {
+      matched = cases.filter(c => c.payment?.failure_code === 'PAYMENT_ABANDONED' && c.status !== 'RECOVERED' && c.status !== 'STOPPED').map(c => c.case_id);
+    }
+    setSelectedCaseIds(new Set(matched));
+  };
+
+  const handleCreateCustomBatchFromSelected = async () => {
+    if (selectedCaseIds.size === 0) {
+      alert('Please select at least one eligible case to create a batch.');
+      return;
+    }
+    setLoading(true);
+    setProcessingText(`Creating batch "${customBatchName}" with ${selectedCaseIds.size} cases...`);
+    try {
+      await api.createBatch(customBatchName, Array.from(selectedCaseIds));
+      setIsBatchBuilderOpen(false);
+      setSelectedCaseIds(new Set());
+      await fetchData(true);
+      setCurrentPage('Batches');
+      alert(`Batch "${customBatchName}" created successfully!`);
+    } catch (err) {
+      alert(`Failed to create custom batch: ${err.message}`);
+    } finally {
+      setProcessingText('');
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (currentPage === 'Audit') {
       fetchAuditEvents();
+    }
+    if (currentPage === 'PolicyStudio') {
+      fetchPolicyConfig();
     }
   }, [currentPage, batches]);
 
@@ -370,6 +669,13 @@ function App() {
             )}
           </div>
           <div
+            className={`menu-item ${currentPage === 'PolicyStudio' ? 'active' : ''}`}
+            onClick={() => setCurrentPage('PolicyStudio')}
+          >
+            <Sliders size={18} />
+            Policy Studio
+          </div>
+          <div
             className={`menu-item ${currentPage === 'Audit' ? 'active' : ''}`}
             onClick={() => setCurrentPage('Audit')}
           >
@@ -400,7 +706,22 @@ function App() {
               AI-powered recovery orchestration with policy-controlled execution
             </p>
           </div>
-          <div className="header-actions">
+          <div className="header-actions" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <button 
+              className="btn btn-primary" 
+              style={{ 
+                background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                boxShadow: '0 4px 12px rgba(99, 102, 241, 0.25)',
+                fontWeight: '600',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }} 
+              onClick={() => setIsCustomCaseModalOpen(true)}
+            >
+              <Plus size={16} />
+              Feed Custom Revenue
+            </button>
             <span style={{
               fontSize: '11px',
               fontWeight: '700',
@@ -412,7 +733,7 @@ function App() {
               borderRadius: '6px',
               border: '1px solid rgba(244, 63, 94, 0.2)'
             }}>
-              Demo / Simulation Environment
+              Demo / Simulation
             </span>
             <button className="btn btn-secondary" onClick={() => fetchData()} disabled={loading}>
               <RefreshCw size={16} />
@@ -662,68 +983,345 @@ function App() {
               )}
 
               {/* RECOVERY CASES PAGE */}
-              {currentPage === 'Cases' && (
-                <div className="panel">
-                  <div className="panel-header">
-                    <span className="panel-title">Recovery Portfolio Cases ({cases.length})</span>
-                  </div>
-                  <div className="table-wrapper">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Case ID</th>
-                          <th>Payment Amount</th>
-                          <th>Strategy</th>
-                          <th>Policy Decision</th>
-                          <th>Final Status</th>
-                          <th>Recovered Amount</th>
-                          <th>Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {cases.map((c) => (
-                          <tr key={c.case_id}>
-                            <td style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              {c.case_id}
-                              {['REC-DEMO-001', 'REC-DEMO-002', 'REC-DEMO-003', 'REC-DEMO-004', 'REC-DEMO-005'].includes(c.case_id) && (
-                                <span style={{
-                                  fontSize: '10px',
-                                  fontWeight: 'bold',
-                                  backgroundColor: 'rgba(99, 102, 241, 0.12)',
-                                  color: 'var(--accent-indigo)',
-                                  padding: '2px 6px',
-                                  borderRadius: '4px',
-                                  textTransform: 'uppercase',
-                                  border: '1px solid rgba(99, 102, 241, 0.2)'
-                                }}>
-                                  Showcase Scenario
-                                </span>
-                              )}
-                            </td>
-                            <td>₹{c.payment?.amount?.toLocaleString('en-IN') || '0'}</td>
-                            <td>{c.current_strategy || 'PENDING'}</td>
-                            <td>
-                              <StatusBadge status={c.metadata_json?.policy_decision || (c.requires_human_approval ? 'HITL_REQUIRED' : 'APPROVED')} />
-                            </td>
-                            <td>
-                              <StatusBadge status={c.status} />
-                            </td>
-                            <td style={{ color: c.status === 'RECOVERED' ? 'var(--accent-emerald)' : 'inherit' }}>
-                              ₹{c.actions?.find(a => a.status === 'SUCCESS')?.recovered_amount?.toLocaleString('en-IN') || '0'}
-                            </td>
-                            <td>
-                              <button className="btn btn-secondary" onClick={() => handleOpenCaseDetails(c.case_id)}>
-                                <Eye size={14} />
-                                View Details
-                              </button>
-                            </td>
+              {currentPage === 'Cases' && (() => {
+                // Filter cases
+                const filteredCases = cases.filter(c => {
+                  if (caseSearch) {
+                    const q = caseSearch.toLowerCase();
+                    const matchId = c.case_id?.toLowerCase().includes(q);
+                    const matchCust = c.payment?.customer?.name?.toLowerCase().includes(q) || c.metadata_json?.customer_name?.toLowerCase().includes(q);
+                    const matchStrategy = c.current_strategy?.toLowerCase().includes(q);
+                    const matchAmt = c.payment?.amount?.toString().includes(q);
+                    if (!matchId && !matchCust && !matchStrategy && !matchAmt) return false;
+                  }
+                  if (caseStatusFilter === 'PENDING' && c.status !== 'PENDING') return false;
+                  if (caseStatusFilter === 'RECOVERED' && c.status !== 'RECOVERED') return false;
+                  if (caseStatusFilter === 'HITL' && c.status !== 'WAITING_FOR_APPROVAL' && c.status !== 'ESCALATED' && !c.requires_human_approval) return false;
+                  if (caseStatusFilter === 'STOPPED' && c.status !== 'STOPPED' && c.status !== 'BLOCKED') return false;
+                  if (caseStatusFilter === 'CUSTOM' && !c.case_id?.startsWith('REC-USER-')) return false;
+                  
+                  if (caseFailureFilter !== 'ALL') {
+                    if (c.payment?.failure_code !== caseFailureFilter) return false;
+                  }
+                  return true;
+                });
+
+                const totalCasePages = Math.max(1, Math.ceil(filteredCases.length / casePageSize));
+                const paginatedCases = filteredCases.slice((casePage - 1) * casePageSize, casePage * casePageSize);
+
+                // Counts for filters
+                const pendingCount = cases.filter(c => c.status === 'PENDING').length;
+                const hitlCount = cases.filter(c => c.status === 'WAITING_FOR_APPROVAL' || c.status === 'ESCALATED' || c.requires_human_approval).length;
+                const recoveredCount = cases.filter(c => c.status === 'RECOVERED').length;
+                const stoppedCount = cases.filter(c => c.status === 'STOPPED' || c.status === 'BLOCKED').length;
+                const customCount = cases.filter(c => c.case_id?.startsWith('REC-USER-')).length;
+
+                // Selected totals
+                const selectedCasesList = cases.filter(c => selectedCaseIds.has(c.case_id));
+                const selectedTotalAmount = selectedCasesList.reduce((acc, c) => acc + (c.payment?.amount || 0), 0);
+
+                return (
+                  <div className="panel" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    
+                    {/* Header with Title & Action Buttons */}
+                    <div className="panel-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                      <div>
+                        <span className="panel-title">Recovery Portfolio Cases ({filteredCases.length} / {cases.length})</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: '10px' }}>
+                        {selectedCaseIds.size > 0 && (
+                          <button 
+                            className="btn btn-primary" 
+                            style={{ backgroundColor: 'var(--accent-amber)', borderColor: 'var(--accent-amber)', color: 'black', fontWeight: 'bold' }}
+                            onClick={() => setIsBatchBuilderOpen(true)}
+                          >
+                            <Layers size={16} />
+                            Create Custom Batch ({selectedCaseIds.size})
+                          </button>
+                        )}
+                        <button 
+                          className="btn btn-primary" 
+                          style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                          onClick={() => setIsCustomCaseModalOpen(true)}
+                        >
+                          <Plus size={16} />
+                          Feed Custom Revenue
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Search & Filter Toolbar */}
+                    <div style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: '12px',
+                      alignItems: 'center',
+                      backgroundColor: 'var(--bg-tertiary)',
+                      padding: '12px 16px',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-color)'
+                    }}>
+                      {/* Search Bar */}
+                      <div style={{ position: 'relative', flexGrow: 1, minWidth: '220px' }}>
+                        <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                        <input
+                          type="text"
+                          placeholder="Search Case ID, Customer, Strategy, or Amount..."
+                          value={caseSearch}
+                          onChange={(e) => { setCaseSearch(e.target.value); setCasePage(1); }}
+                          style={{ paddingLeft: '36px', height: '38px', fontSize: '13px' }}
+                        />
+                        {caseSearch && (
+                          <button 
+                            onClick={() => setCaseSearch('')} 
+                            style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+                          >
+                            <X size={14} />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Failure Category Filter */}
+                      <div style={{ minWidth: '180px' }}>
+                        <select
+                          value={caseFailureFilter}
+                          onChange={(e) => { setCaseFailureFilter(e.target.value); setCasePage(1); }}
+                          style={{ height: '38px', fontSize: '13px' }}
+                        >
+                          <option value="ALL">All Failure Categories</option>
+                          <option value="TEMPORARY_BANK_FAILURE">Bank Network Failures</option>
+                          <option value="INSUFFICIENT_FUNDS">Insufficient Funds</option>
+                          <option value="PAYMENT_ABANDONED">Payment Abandonment</option>
+                          <option value="AUTHENTICATION_FAILED">Authentication / 3DS</option>
+                          <option value="EXPIRED_PAYMENT_METHOD">Expired Payment Method</option>
+                          <option value="REPEATED_FAILURE">Repeated Declines</option>
+                          <option value="UNKNOWN_FAILURE">Unknown Failures</option>
+                        </select>
+                      </div>
+
+                      {/* Page Size Selector */}
+                      <div style={{ width: '120px' }}>
+                        <select
+                          value={casePageSize}
+                          onChange={(e) => { setCasePageSize(parseInt(e.target.value, 10)); setCasePage(1); }}
+                          style={{ height: '38px', fontSize: '13px' }}
+                        >
+                          <option value={10}>10 per page</option>
+                          <option value={25}>25 per page</option>
+                          <option value={50}>50 per page</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Filter Pills */}
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
+                      <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600', marginRight: '4px' }}>Status:</span>
+                      {[
+                        { id: 'ALL', label: `All (${cases.length})` },
+                        { id: 'PENDING', label: `Pending (${pendingCount})` },
+                        { id: 'HITL', label: `Requires Review (${hitlCount})` },
+                        { id: 'RECOVERED', label: `Recovered (${recoveredCount})` },
+                        { id: 'STOPPED', label: `Stopped / Blocked (${stoppedCount})` },
+                        { id: 'CUSTOM', label: `Custom Feed (${customCount})` },
+                      ].map(tab => (
+                        <button
+                          key={tab.id}
+                          onClick={() => { setCaseStatusFilter(tab.id); setCasePage(1); }}
+                          style={{
+                            padding: '6px 12px',
+                            borderRadius: '20px',
+                            fontSize: '12px',
+                            fontWeight: '600',
+                            border: '1px solid',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                            backgroundColor: caseStatusFilter === tab.id ? 'var(--accent-indigo)' : 'var(--bg-tertiary)',
+                            borderColor: caseStatusFilter === tab.id ? 'var(--accent-indigo)' : 'var(--border-color)',
+                            color: caseStatusFilter === tab.id ? '#ffffff' : 'var(--text-secondary)'
+                          }}
+                        >
+                          {tab.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Floating Selection Bar */}
+                    {selectedCaseIds.size > 0 && (
+                      <div style={{
+                        backgroundColor: 'rgba(99, 102, 241, 0.15)',
+                        border: '1px solid var(--accent-indigo)',
+                        borderRadius: '8px',
+                        padding: '10px 16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '12px'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+                          <CheckSquare size={16} className="text-indigo-400" />
+                          <span>Selected <strong>{selectedCaseIds.size} cases</strong> totaling <strong>₹{selectedTotalAmount.toLocaleString('en-IN')}</strong></span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button 
+                            className="btn btn-primary" 
+                            style={{ padding: '6px 12px', fontSize: '12px' }}
+                            onClick={() => setIsBatchBuilderOpen(true)}
+                          >
+                            <Layers size={14} />
+                            Build Custom Batch
+                          </button>
+                          <button 
+                            className="btn btn-secondary" 
+                            style={{ padding: '6px 12px', fontSize: '12px' }}
+                            onClick={() => setSelectedCaseIds(new Set())}
+                          >
+                            Clear Selection
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Table View */}
+                    <div className="table-wrapper">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th style={{ width: '40px', textAlign: 'center' }}>
+                              <input
+                                type="checkbox"
+                                onChange={handleSelectAllVisibleCases}
+                                checked={paginatedCases.length > 0 && paginatedCases.filter(c => c.status !== 'RECOVERED' && c.status !== 'STOPPED').every(c => selectedCaseIds.has(c.case_id))}
+                                style={{ width: 'auto', cursor: 'pointer' }}
+                              />
+                            </th>
+                            <th>Case ID</th>
+                            <th>Payment Amount</th>
+                            <th>Strategy</th>
+                            <th>Policy Decision</th>
+                            <th>Final Status</th>
+                            <th>Recovered Amount</th>
+                            <th>Actions</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {paginatedCases.length === 0 ? (
+                            <tr>
+                              <td colSpan={8} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>
+                                No recovery cases found matching your search and filter criteria.
+                              </td>
+                            </tr>
+                          ) : (
+                            paginatedCases.map((c) => {
+                              const isSelected = selectedCaseIds.has(c.case_id);
+                              const isEligible = c.status !== 'RECOVERED' && c.status !== 'STOPPED';
+                              return (
+                                <tr key={c.case_id} style={{ backgroundColor: isSelected ? 'rgba(99, 102, 241, 0.08)' : 'inherit' }}>
+                                  <td style={{ textAlign: 'center' }}>
+                                    <input
+                                      type="checkbox"
+                                      disabled={!isEligible}
+                                      checked={isSelected}
+                                      onChange={() => handleToggleSelectCase(c.case_id)}
+                                      style={{ width: 'auto', cursor: isEligible ? 'pointer' : 'not-allowed' }}
+                                    />
+                                  </td>
+                                  <td style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    {c.case_id}
+                                    {['REC-DEMO-001', 'REC-DEMO-002', 'REC-DEMO-003', 'REC-DEMO-004', 'REC-DEMO-005'].includes(c.case_id) && (
+                                      <span style={{
+                                        fontSize: '10px',
+                                        fontWeight: 'bold',
+                                        backgroundColor: 'rgba(99, 102, 241, 0.12)',
+                                        color: 'var(--accent-indigo)',
+                                        padding: '2px 6px',
+                                        borderRadius: '4px',
+                                        textTransform: 'uppercase',
+                                        border: '1px solid rgba(99, 102, 241, 0.2)'
+                                      }}>
+                                        Showcase Scenario
+                                      </span>
+                                    )}
+                                    {c.case_id.startsWith('REC-USER-') && (
+                                      <span style={{
+                                        fontSize: '10px',
+                                        fontWeight: 'bold',
+                                        backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                                        color: 'var(--accent-emerald)',
+                                        padding: '2px 6px',
+                                        borderRadius: '4px',
+                                        textTransform: 'uppercase',
+                                        border: '1px solid rgba(16, 185, 129, 0.2)'
+                                      }}>
+                                        Custom Feed
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td>₹{c.payment?.amount?.toLocaleString('en-IN') || '0'}</td>
+                                  <td>{c.current_strategy || 'PENDING'}</td>
+                                  <td>
+                                    <StatusBadge status={c.metadata_json?.policy_decision || (c.requires_human_approval ? 'HITL_REQUIRED' : 'APPROVED')} />
+                                  </td>
+                                  <td>
+                                    <StatusBadge status={c.status} />
+                                  </td>
+                                  <td style={{ color: c.status === 'RECOVERED' ? 'var(--accent-emerald)' : 'inherit' }}>
+                                    ₹{c.actions?.find(a => a.status === 'SUCCESS')?.recovered_amount?.toLocaleString('en-IN') || '0'}
+                                  </td>
+                                  <td>
+                                    <button className="btn btn-secondary" onClick={() => handleOpenCaseDetails(c.case_id)}>
+                                      <Eye size={14} />
+                                      View Details
+                                    </button>
+                                  </td>
+                                </tr>
+                              );
+                            })
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Pagination Bar */}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '12px 16px',
+                      borderTop: '1px solid var(--border-color)',
+                      flexWrap: 'wrap',
+                      gap: '12px'
+                    }}>
+                      <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                        Showing {filteredCases.length === 0 ? 0 : (casePage - 1) * casePageSize + 1} to {Math.min(casePage * casePageSize, filteredCases.length)} of {filteredCases.length} cases
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <button
+                          className="btn btn-secondary"
+                          style={{ padding: '6px 10px' }}
+                          disabled={casePage <= 1}
+                          onClick={() => setCasePage(prev => Math.max(1, prev - 1))}
+                        >
+                          <ChevronLeft size={16} />
+                          Previous
+                        </button>
+                        <span style={{ fontSize: '13px', padding: '0 8px', fontWeight: 'bold' }}>
+                          Page {casePage} of {totalCasePages}
+                        </span>
+                        <button
+                          className="btn btn-secondary"
+                          style={{ padding: '6px 10px' }}
+                          disabled={casePage >= totalCasePages}
+                          onClick={() => setCasePage(prev => Math.min(totalCasePages, prev + 1))}
+                        >
+                          Next
+                          <ChevronRight size={16} />
+                        </button>
+                      </div>
+                    </div>
+
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* HUMAN REVIEW PAGE */}
               {currentPage === 'HumanReview' && (
@@ -864,72 +1462,416 @@ function App() {
                 </div>
               )}
 
-              {/* AUDIT PAGE */}
-              {currentPage === 'Audit' && (
-                <div className="panel">
-                  <div className="panel-header">
-                    <span className="panel-title">System Audit Log Trail ({auditEvents.length})</span>
+              {/* POLICY STUDIO PAGE */}
+              {currentPage === 'PolicyStudio' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  
+                  {/* Header */}
+                  <div className="panel" style={{ padding: '20px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <Sliders size={22} className="text-indigo-400" />
+                          <h3 style={{ fontSize: '20px', fontWeight: 'bold' }}>Interactive Policy Rules Studio</h3>
+                        </div>
+                        <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                          Configure deterministic risk thresholds, retry barriers, and HITL safety triggers in real-time.
+                        </p>
+                      </div>
+                      <div style={{ display: 'flex', gap: '10px' }}>
+                        <button className="btn btn-secondary" onClick={handleResetPolicy} disabled={loading}>
+                          <RotateCcw size={16} />
+                          Reset to Defaults
+                        </button>
+                        <button 
+                          className="btn btn-primary" 
+                          style={{ background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', fontWeight: 'bold' }} 
+                          onClick={handleSavePolicy} 
+                          disabled={loading}
+                        >
+                          <Save size={16} />
+                          Save Policy Configuration
+                        </button>
+                      </div>
+                    </div>
+
+                    {policyFeedback && (
+                      <div style={{
+                        marginTop: '16px',
+                        padding: '12px 16px',
+                        borderRadius: '8px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        backgroundColor: policyFeedback.type === 'success' ? 'var(--accent-emerald-opaque)' : 'var(--accent-rose-opaque)',
+                        border: `1px solid ${policyFeedback.type === 'success' ? 'var(--accent-emerald)' : 'var(--accent-rose)'}`,
+                        color: policyFeedback.type === 'success' ? 'var(--accent-emerald)' : 'var(--accent-rose)',
+                        fontSize: '13px',
+                        fontWeight: '600'
+                      }}>
+                        {policyFeedback.type === 'success' ? <CheckCircle size={18} /> : <AlertTriangle size={18} />}
+                        <span>{policyFeedback.message}</span>
+                      </div>
+                    )}
                   </div>
-                  <div className="table-wrapper">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Timestamp</th>
-                          <th>Case ID</th>
-                          <th>Event Type</th>
-                          <th>Actor</th>
-                          <th>Summary</th>
-                          <th>Metadata</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {auditEvents.map((event) => (
-                          <React.Fragment key={event.audit_id}>
-                            <tr>
-                              <td style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                                {formatDate(event.timestamp)}
-                              </td>
-                              <td style={{ fontWeight: 'bold' }}>{event.case_id}</td>
-                              <td>
-                                <StatusBadge status={event.event_type} />
-                              </td>
-                              <td>
-                                <span className={`badge ${event.actor_type === 'HUMAN' ? 'badge-hitl' : 'badge-system'}`}>
-                                  {event.actor_name}
-                                </span>
-                              </td>
-                              <td>{event.decision_summary}</td>
-                              <td>
-                                {event.metadata_json && Object.keys(event.metadata_json).length > 0 && (
-                                  <button className="btn btn-secondary" style={{ padding: '4px 8px', fontSize: '12px' }} onClick={() => setExpandedEventId(expandedEventId === event.audit_id ? null : event.audit_id)}>
-                                    {expandedEventId === event.audit_id ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                                    JSON
-                                  </button>
-                                )}
-                              </td>
-                            </tr>
-                            {expandedEventId === event.audit_id && (
-                              <tr>
-                                <td colSpan="6" style={{ backgroundColor: 'var(--bg-tertiary)', padding: '16px' }}>
-                                  <pre style={{
-                                    fontFamily: 'monospace',
-                                    fontSize: '12px',
-                                    color: '#818cf8',
-                                    whiteSpace: 'pre-wrap',
-                                    wordBreak: 'break-all'
-                                  }}>
-                                    {JSON.stringify(event.metadata_json, null, 2)}
-                                  </pre>
-                                </td>
-                              </tr>
-                            )}
-                          </React.Fragment>
-                        ))}
-                      </tbody>
-                    </table>
+
+                  {/* Policy Cards Grid */}
+                  <div className="grid-2" style={{ gap: '20px' }}>
+                    
+                    {/* Card 1: High-Value HITL Threshold */}
+                    <div className="panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold', fontSize: '15px' }}>
+                          <ShieldAlert size={18} style={{ color: 'var(--accent-amber)' }} />
+                          High-Value HITL Escalation Threshold
+                        </div>
+                        <span style={{ fontSize: '18px', fontWeight: 'bold', color: 'var(--accent-amber)' }}>
+                          ₹{policyConfig.HITL_AMOUNT_THRESHOLD?.toLocaleString('en-IN')}
+                        </span>
+                      </div>
+                      <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                        Transactions equal to or exceeding this value are automatically blocked from automated execution and routed to the Human Review queue.
+                      </p>
+                      <input
+                        type="range"
+                        min="5000"
+                        max="200000"
+                        step="5000"
+                        value={policyConfig.HITL_AMOUNT_THRESHOLD}
+                        onChange={(e) => setPolicyConfig({ ...policyConfig, HITL_AMOUNT_THRESHOLD: parseFloat(e.target.value) })}
+                        style={{ cursor: 'pointer' }}
+                      />
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-muted)' }}>
+                        <span>₹5,000 (Conservative)</span>
+                        <span>₹1,00,000</span>
+                        <span>₹2,00,000 (Aggressive)</span>
+                      </div>
+                    </div>
+
+                    {/* Card 2: Max Retries Allowed */}
+                    <div className="panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold', fontSize: '15px' }}>
+                          <RotateCcw size={18} style={{ color: 'var(--accent-rose)' }} />
+                          Maximum Automated Retries
+                        </div>
+                        <span style={{ fontSize: '18px', fontWeight: 'bold', color: 'var(--accent-rose)' }}>
+                          {policyConfig.MAX_RETRIES} Retries
+                        </span>
+                      </div>
+                      <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                        Hard stop threshold enforcing `MAX_RETRIES_REACHED`. Once reached, all automated retries are permanently blocked to prevent card network penalties.
+                      </p>
+                      <input
+                        type="range"
+                        min="1"
+                        max="5"
+                        step="1"
+                        value={policyConfig.MAX_RETRIES}
+                        onChange={(e) => setPolicyConfig({ ...policyConfig, MAX_RETRIES: parseInt(e.target.value, 10) })}
+                        style={{ cursor: 'pointer' }}
+                      />
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-muted)' }}>
+                        <span>1 Attempt (Strict)</span>
+                        <span>3 Attempts (Standard)</span>
+                        <span>5 Attempts (Max)</span>
+                      </div>
+                    </div>
+
+                    {/* Card 3: Maximum Customer Reminders */}
+                    <div className="panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold', fontSize: '15px' }}>
+                          <Coins size={18} style={{ color: 'var(--accent-indigo)' }} />
+                          Maximum Customer Reminders
+                        </div>
+                        <span style={{ fontSize: '18px', fontWeight: 'bold', color: 'var(--accent-indigo)' }}>
+                          {policyConfig.MAX_REMINDERS} Reminders
+                        </span>
+                      </div>
+                      <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                        Caps WhatsApp, Email, and SMS payment link notifications to avoid spamming the customer.
+                      </p>
+                      <input
+                        type="range"
+                        min="1"
+                        max="5"
+                        step="1"
+                        value={policyConfig.MAX_REMINDERS}
+                        onChange={(e) => setPolicyConfig({ ...policyConfig, MAX_REMINDERS: parseInt(e.target.value, 10) })}
+                        style={{ cursor: 'pointer' }}
+                      />
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-muted)' }}>
+                        <span>1 Reminder</span>
+                        <span>3 Reminders</span>
+                        <span>5 Reminders</span>
+                      </div>
+                    </div>
+
+                    {/* Card 4: Minimum Diagnosis Confidence */}
+                    <div className="panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold', fontSize: '15px' }}>
+                          <AlertTriangle size={18} style={{ color: 'var(--accent-emerald)' }} />
+                          Diagnosis Confidence Barrier
+                        </div>
+                        <span style={{ fontSize: '18px', fontWeight: 'bold', color: 'var(--accent-emerald)' }}>
+                          {(policyConfig.HITL_CONFIDENCE_THRESHOLD * 100).toFixed(0)}%
+                        </span>
+                      </div>
+                      <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                        If the Diagnosis Agent cannot identify the failure root cause with confidence above this barrier, the case escalates to HITL.
+                      </p>
+                      <input
+                        type="range"
+                        min="0.50"
+                        max="0.95"
+                        step="0.05"
+                        value={policyConfig.HITL_CONFIDENCE_THRESHOLD}
+                        onChange={(e) => setPolicyConfig({ ...policyConfig, HITL_CONFIDENCE_THRESHOLD: parseFloat(e.target.value) })}
+                        style={{ cursor: 'pointer' }}
+                      />
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-muted)' }}>
+                        <span>50% (Permissive)</span>
+                        <span>70% (Default)</span>
+                        <span>95% (High Certainty)</span>
+                      </div>
+                    </div>
+
                   </div>
+
+                  {/* Live Policy Simulation Sandbox */}
+                  <div className="panel" style={{ padding: '20px' }}>
+                    <div style={{ fontWeight: 'bold', fontSize: '16px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Zap size={18} style={{ color: 'var(--accent-amber)' }} />
+                      Live Policy Sandbox Tester
+                    </div>
+                    <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
+                      Test how current configured thresholds will evaluate a sample transaction amount without saving.
+                    </p>
+
+                    <div className="grid-3" style={{ gap: '16px', alignItems: 'flex-end' }}>
+                      <div className="form-group">
+                        <label>Simulated Amount (₹)</label>
+                        <input
+                          type="number"
+                          value={testPolicyAmount}
+                          onChange={(e) => setTestPolicyAmount(parseFloat(e.target.value) || 0)}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Simulated Retries</label>
+                        <input
+                          type="number"
+                          value={testPolicyRetries}
+                          onChange={(e) => setTestPolicyRetries(parseInt(e.target.value, 10) || 0)}
+                        />
+                      </div>
+                      <div>
+                        {(() => {
+                          const isHighValue = testPolicyAmount >= policyConfig.HITL_AMOUNT_THRESHOLD;
+                          const isMaxRetries = testPolicyRetries >= policyConfig.MAX_RETRIES;
+                          
+                          let decision = 'APPROVED';
+                          let badgeClass = 'badge-approved';
+                          let note = 'Transaction within automated execution safety boundaries.';
+
+                          if (isMaxRetries) {
+                            decision = 'BLOCKED (STOPPED)';
+                            badgeClass = 'badge-stopped';
+                            note = `Violates MAX_RETRIES limit (${policyConfig.MAX_RETRIES}). Automated execution halted.`;
+                          } else if (isHighValue) {
+                            decision = 'HITL_REQUIRED';
+                            badgeClass = 'badge-hitl';
+                            note = `Exceeds High-Value threshold (₹${policyConfig.HITL_AMOUNT_THRESHOLD.toLocaleString('en-IN')}). Routed to human review.`;
+                          }
+
+                          return (
+                            <div style={{ backgroundColor: 'var(--bg-tertiary)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Outcome with Active Rules:</div>
+                              <div style={{ fontSize: '15px', fontWeight: 'bold', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span className={`badge ${badgeClass}`}>{decision}</span>
+                              </div>
+                              <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                                {note}
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+
                 </div>
               )}
+
+              {/* AUDIT PAGE */}
+              {currentPage === 'Audit' && (() => {
+                const filteredAudit = auditEvents.filter(event => {
+                  if (auditSearch) {
+                    const q = auditSearch.toLowerCase();
+                    const matchCase = event.case_id?.toLowerCase().includes(q);
+                    const matchEvent = event.event_type?.toLowerCase().includes(q);
+                    const matchActor = event.actor_name?.toLowerCase().includes(q);
+                    const matchSumm = event.decision_summary?.toLowerCase().includes(q);
+                    if (!matchCase && !matchEvent && !matchActor && !matchSumm) return false;
+                  }
+                  if (auditActorFilter !== 'ALL' && event.actor_type !== auditActorFilter) return false;
+                  return true;
+                });
+
+                const totalAuditPages = Math.max(1, Math.ceil(filteredAudit.length / auditPageSize));
+                const paginatedAudit = filteredAudit.slice((auditPage - 1) * auditPageSize, auditPage * auditPageSize);
+
+                return (
+                  <div className="panel" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div className="panel-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                      <span className="panel-title">System Audit Log Trail ({filteredAudit.length} / {auditEvents.length})</span>
+                      <button className="btn btn-secondary" onClick={() => fetchAuditEvents()} disabled={loading}>
+                        <RefreshCw size={14} />
+                        Refresh Logs
+                      </button>
+                    </div>
+
+                    {/* Audit Search Toolbar */}
+                    <div style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: '12px',
+                      alignItems: 'center',
+                      backgroundColor: 'var(--bg-tertiary)',
+                      padding: '12px 16px',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-color)'
+                    }}>
+                      <div style={{ position: 'relative', flexGrow: 1, minWidth: '220px' }}>
+                        <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                        <input
+                          type="text"
+                          placeholder="Search Audit Trail by Case ID, Event, Actor, or Summary..."
+                          value={auditSearch}
+                          onChange={(e) => { setAuditSearch(e.target.value); setAuditPage(1); }}
+                          style={{ paddingLeft: '36px', height: '38px', fontSize: '13px' }}
+                        />
+                      </div>
+
+                      <div style={{ minWidth: '160px' }}>
+                        <select
+                          value={auditActorFilter}
+                          onChange={(e) => { setAuditActorFilter(e.target.value); setAuditPage(1); }}
+                          style={{ height: '38px', fontSize: '13px' }}
+                        >
+                          <option value="ALL">All Actors</option>
+                          <option value="AGENT">Agents</option>
+                          <option value="POLICY_ENGINE">Policy Engine</option>
+                          <option value="HUMAN">Human Reviewers</option>
+                          <option value="SYSTEM">System</option>
+                          <option value="USER">User Intake</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="table-wrapper">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Timestamp</th>
+                            <th>Case ID</th>
+                            <th>Event Type</th>
+                            <th>Actor</th>
+                            <th>Summary</th>
+                            <th>Metadata</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {paginatedAudit.length === 0 ? (
+                            <tr>
+                              <td colSpan={6} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>
+                                No audit records found matching your search.
+                              </td>
+                            </tr>
+                          ) : (
+                            paginatedAudit.map((event) => (
+                              <React.Fragment key={event.audit_id}>
+                                <tr>
+                                  <td style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                                    {formatDate(event.timestamp)}
+                                  </td>
+                                  <td style={{ fontWeight: 'bold' }}>{event.case_id}</td>
+                                  <td>
+                                    <StatusBadge status={event.event_type} />
+                                  </td>
+                                  <td>
+                                    <span className={`badge ${event.actor_type === 'HUMAN' ? 'badge-hitl' : 'badge-system'}`}>
+                                      {event.actor_name}
+                                    </span>
+                                  </td>
+                                  <td>{event.decision_summary}</td>
+                                  <td>
+                                    {event.metadata_json && Object.keys(event.metadata_json).length > 0 && (
+                                      <button className="btn btn-secondary" style={{ padding: '4px 8px', fontSize: '12px' }} onClick={() => setExpandedEventId(expandedEventId === event.audit_id ? null : event.audit_id)}>
+                                        {expandedEventId === event.audit_id ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                                      </button>
+                                    )}
+                                  </td>
+                                </tr>
+                                {expandedEventId === event.audit_id && (
+                                  <tr>
+                                    <td colSpan={6} style={{ backgroundColor: 'rgba(0,0,0,0.2)', padding: '16px' }}>
+                                      <pre style={{ fontSize: '11px', margin: 0, overflowX: 'auto' }}>
+                                        {JSON.stringify(event.metadata_json, null, 2)}
+                                      </pre>
+                                    </td>
+                                  </tr>
+                                )}
+                              </React.Fragment>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Audit Pagination */}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '12px 16px',
+                      borderTop: '1px solid var(--border-color)',
+                      flexWrap: 'wrap',
+                      gap: '12px'
+                    }}>
+                      <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                        Showing {filteredAudit.length === 0 ? 0 : (auditPage - 1) * auditPageSize + 1} to {Math.min(auditPage * auditPageSize, filteredAudit.length)} of {filteredAudit.length} events
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <button
+                          className="btn btn-secondary"
+                          style={{ padding: '6px 10px' }}
+                          disabled={auditPage <= 1}
+                          onClick={() => setAuditPage(prev => Math.max(1, prev - 1))}
+                        >
+                          <ChevronLeft size={16} />
+                          Previous
+                        </button>
+                        <span style={{ fontSize: '13px', padding: '0 8px', fontWeight: 'bold' }}>
+                          Page {auditPage} of {totalAuditPages}
+                        </span>
+                        <button
+                          className="btn btn-secondary"
+                          style={{ padding: '6px 10px' }}
+                          disabled={auditPage >= totalAuditPages}
+                          onClick={() => setAuditPage(prev => Math.min(totalAuditPages, prev + 1))}
+                        >
+                          Next
+                          <ChevronRight size={16} />
+                        </button>
+                      </div>
+                    </div>
+
+                  </div>
+                );
+              })()}
             </>
           )}
         </div>
@@ -1361,6 +2303,515 @@ function App() {
           </div>
         </div>
       )}
+
+      {/* Custom Case / Personalized Revenue Intake Modal */}
+      {isCustomCaseModalOpen && (
+        <div className="modal-overlay" onClick={() => setIsCustomCaseModalOpen(false)}>
+          <div 
+            className="modal-content" 
+            style={{ maxWidth: '720px', maxHeight: '90vh', overflowY: 'auto' }} 
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '8px',
+                  backgroundColor: 'rgba(99, 102, 241, 0.15)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--accent-indigo)'
+                }}>
+                  <Plus size={20} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '18px', fontWeight: 'bold' }}>Feed Custom Failed Payment & Revenue</h3>
+                  <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                    Inject personalized transaction amounts, customer profiles, and test AI recovery intelligence.
+                  </p>
+                </div>
+              </div>
+              <button 
+                className="btn btn-secondary" 
+                style={{ padding: '6px' }}
+                onClick={() => setIsCustomCaseModalOpen(false)}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateCustomCase}>
+              <div className="modal-body" style={{ gap: '20px' }}>
+                
+                {/* 1-Click Quick Presets */}
+                <div>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                    <Sparkles size={14} className="text-indigo-400" />
+                    Quick Preset Scenarios
+                  </label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                    {PRESETS.map((preset, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => handleApplyPreset(preset.data)}
+                        style={{
+                          backgroundColor: 'var(--bg-tertiary)',
+                          border: '1px solid var(--border-color)',
+                          borderRadius: '8px',
+                          padding: '8px 12px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'flex-start',
+                          gap: '2px',
+                          transition: 'all 0.2s',
+                          color: 'var(--text-primary)'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent-indigo)'}
+                        onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border-color)'}
+                      >
+                        <span style={{ fontSize: '12px', fontWeight: '600' }}>{preset.name}</span>
+                        <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{preset.badge}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid-2" style={{ gap: '20px' }}>
+                  
+                  {/* Left Column: Payment & Revenue Details */}
+                  <div style={{
+                    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                    padding: '16px',
+                    borderRadius: '12px',
+                    border: '1px solid var(--border-color)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '14px'
+                  }}>
+                    <div style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--accent-indigo)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Coins size={15} />
+                      Payment & Revenue Details
+                    </div>
+
+                    <div className="form-group">
+                      <label>Personalized Revenue Amount (₹) *</label>
+                      <input
+                        type="number"
+                        min="1"
+                        step="any"
+                        required
+                        value={customCaseForm.amount}
+                        onChange={(e) => setCustomCaseForm({ ...customCaseForm, amount: e.target.value })}
+                        placeholder="e.g. 15000"
+                        style={{ fontSize: '16px', fontWeight: 'bold', color: 'var(--accent-emerald)' }}
+                      />
+                    </div>
+
+                    <div className="grid-2" style={{ gap: '10px' }}>
+                      <div className="form-group">
+                        <label>Currency</label>
+                        <select
+                          value={customCaseForm.currency}
+                          onChange={(e) => setCustomCaseForm({ ...customCaseForm, currency: e.target.value })}
+                        >
+                          <option value="INR">INR (₹)</option>
+                          <option value="USD">USD ($)</option>
+                          <option value="EUR">EUR (€)</option>
+                        </select>
+                      </div>
+                      <div className="form-group">
+                        <label>Payment Method</label>
+                        <select
+                          value={customCaseForm.payment_method}
+                          onChange={(e) => setCustomCaseForm({ ...customCaseForm, payment_method: e.target.value })}
+                        >
+                          <option value="UPI">UPI</option>
+                          <option value="CARD">Card</option>
+                          <option value="NETBANKING">Netbanking</option>
+                          <option value="WALLET">Wallet</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="form-group">
+                      <label>Failure Reason / Code</label>
+                      <select
+                        value={customCaseForm.failure_code}
+                        onChange={(e) => setCustomCaseForm({ ...customCaseForm, failure_code: e.target.value })}
+                      >
+                        <option value="TEMPORARY_BANK_FAILURE">TEMPORARY_BANK_FAILURE (Bank network down)</option>
+                        <option value="INSUFFICIENT_FUNDS">INSUFFICIENT_FUNDS (Account balance low)</option>
+                        <option value="PAYMENT_ABANDONED">PAYMENT_ABANDONED (User dropped off)</option>
+                        <option value="AUTHENTICATION_FAILED">AUTHENTICATION_FAILED (OTP / 3DS failure)</option>
+                        <option value="EXPIRED_PAYMENT_METHOD">EXPIRED_PAYMENT_METHOD (Card expired)</option>
+                        <option value="REPEATED_FAILURE">REPEATED_FAILURE (Persistent decline)</option>
+                        <option value="UNKNOWN_FAILURE">UNKNOWN_FAILURE (Gateway anomaly)</option>
+                      </select>
+                    </div>
+
+                    <div className="grid-2" style={{ gap: '10px' }}>
+                      <div className="form-group">
+                        <label>Prior Retries</label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="10"
+                          value={customCaseForm.retry_count}
+                          onChange={(e) => setCustomCaseForm({ ...customCaseForm, retry_count: e.target.value })}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Prior Reminders</label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="10"
+                          value={customCaseForm.reminder_count}
+                          onChange={(e) => setCustomCaseForm({ ...customCaseForm, reminder_count: e.target.value })}
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                      <input
+                        type="checkbox"
+                        id="is_disputed"
+                        checked={customCaseForm.is_disputed}
+                        onChange={(e) => setCustomCaseForm({ ...customCaseForm, is_disputed: e.target.checked })}
+                        style={{ width: 'auto', cursor: 'pointer' }}
+                      />
+                      <label htmlFor="is_disputed" style={{ cursor: 'pointer', color: customCaseForm.is_disputed ? 'var(--accent-rose)' : 'var(--text-secondary)' }}>
+                        Active Customer Dispute / Chargeback
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Right Column: Customer Profile & Lifetime Value */}
+                  <div style={{
+                    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                    padding: '16px',
+                    borderRadius: '12px',
+                    border: '1px solid var(--border-color)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '14px'
+                  }}>
+                    <div style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--accent-indigo)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <UserPlus size={15} />
+                      Customer Revenue Profile
+                    </div>
+
+                    <div className="form-group">
+                      <label>Customer Name</label>
+                      <input
+                        type="text"
+                        value={customCaseForm.customer_name}
+                        onChange={(e) => setCustomCaseForm({ ...customCaseForm, customer_name: e.target.value })}
+                        placeholder="e.g. Vikram Malhotra"
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label>Customer Segment</label>
+                      <select
+                        value={customCaseForm.customer_segment}
+                        onChange={(e) => setCustomCaseForm({ ...customCaseForm, customer_segment: e.target.value })}
+                      >
+                        <option value="HIGH_VALUE_RELIABLE">HIGH_VALUE_RELIABLE (VIP / Top 5%)</option>
+                        <option value="RELIABLE">RELIABLE (Consistent history)</option>
+                        <option value="AVERAGE">AVERAGE (Occasional buyer)</option>
+                        <option value="AT_RISK">AT_RISK (Frequent declines)</option>
+                        <option value="LOW_ENGAGEMENT">LOW_ENGAGEMENT (Dormant user)</option>
+                      </select>
+                    </div>
+
+                    <div className="form-group">
+                      <label>Customer Lifetime Value (LTV ₹)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={customCaseForm.customer_ltv}
+                        onChange={(e) => setCustomCaseForm({ ...customCaseForm, customer_ltv: e.target.value })}
+                        placeholder="e.g. 150000"
+                      />
+                    </div>
+
+                    <div className="grid-2" style={{ gap: '10px' }}>
+                      <div className="form-group">
+                        <label>Successful Payments</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={customCaseForm.successful_payments}
+                          onChange={(e) => setCustomCaseForm({ ...customCaseForm, successful_payments: e.target.value })}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Failed Payments</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={customCaseForm.failed_payments}
+                          onChange={(e) => setCustomCaseForm({ ...customCaseForm, failed_payments: e.target.value })}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="form-group">
+                      <label>Engagement Score ({customCaseForm.engagement_score}/10)</label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="10"
+                        step="0.5"
+                        value={customCaseForm.engagement_score}
+                        onChange={(e) => setCustomCaseForm({ ...customCaseForm, engagement_score: parseFloat(e.target.value) })}
+                        style={{ cursor: 'pointer' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Auto-run Toggle */}
+                <div style={{
+                  backgroundColor: 'rgba(99, 102, 241, 0.08)',
+                  border: '1px solid rgba(99, 102, 241, 0.2)',
+                  borderRadius: '8px',
+                  padding: '12px 16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px'
+                }}>
+                  <input
+                    type="checkbox"
+                    id="auto_run"
+                    checked={customCaseForm.auto_run}
+                    onChange={(e) => setCustomCaseForm({ ...customCaseForm, auto_run: e.target.checked })}
+                    style={{ width: 'auto', cursor: 'pointer' }}
+                  />
+                  <label htmlFor="auto_run" style={{ cursor: 'pointer', color: 'var(--text-primary)', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Zap size={15} style={{ color: 'var(--accent-amber)' }} />
+                    Immediately run AI Agent Diagnosis, Customer Profiling, Strategy & Policy Pipeline upon creation
+                  </label>
+                </div>
+
+              </div>
+
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setIsCustomCaseModalOpen(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  style={{
+                    background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                    fontWeight: '600',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}
+                  disabled={loading}
+                >
+                  <Play size={15} />
+                  {customCaseForm.auto_run ? 'Create & Orchestrate Recovery' : 'Create Recovery Case'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Batch Builder Modal */}
+      {isBatchBuilderOpen && (() => {
+        const selectedList = cases.filter(c => selectedCaseIds.has(c.case_id));
+        const totalAmount = selectedList.reduce((acc, c) => acc + (c.payment?.amount || 0), 0);
+
+        return (
+          <div className="modal-overlay" onClick={() => setIsBatchBuilderOpen(false)}>
+            <div 
+              className="modal-content" 
+              style={{ maxWidth: '640px', maxHeight: '90vh', overflowY: 'auto' }} 
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="modal-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '8px',
+                    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'var(--accent-amber)'
+                  }}>
+                    <Layers size={20} />
+                  </div>
+                  <div>
+                    <h3 style={{ fontSize: '18px', fontWeight: 'bold' }}>Custom Batch Portfolio Builder</h3>
+                    <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                      Group chosen recovery cases into a custom portfolio for automated batch orchestration.
+                    </p>
+                  </div>
+                </div>
+                <button className="btn btn-secondary" style={{ padding: '6px' }} onClick={() => setIsBatchBuilderOpen(false)}>
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="modal-body" style={{ gap: '18px' }}>
+                <div className="form-group">
+                  <label>Portfolio Batch Name *</label>
+                  <input
+                    type="text"
+                    value={customBatchName}
+                    onChange={(e) => setCustomBatchName(e.target.value)}
+                    placeholder="e.g. Q3 High-Priority Recovery Portfolio"
+                    style={{ fontWeight: '600' }}
+                  />
+                </div>
+
+                {/* Quick Selection Presets */}
+                <div>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                    <Sparkles size={14} className="text-amber-400" />
+                    Quick Selection Shortcuts
+                  </label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      style={{ fontSize: '12px', padding: '6px 10px' }}
+                      onClick={() => handleSelectCategoryPreset('ALL_ELIGIBLE')}
+                    >
+                      All Eligible Cases ({cases.filter(c => c.status !== 'RECOVERED' && c.status !== 'STOPPED').length})
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      style={{ fontSize: '12px', padding: '6px 10px' }}
+                      onClick={() => handleSelectCategoryPreset('HIGH_VALUE')}
+                    >
+                      💎 High Value (&gt; ₹{policyConfig.HITL_AMOUNT_THRESHOLD / 1000}k)
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      style={{ fontSize: '12px', padding: '6px 10px' }}
+                      onClick={() => handleSelectCategoryPreset('UPI')}
+                    >
+                      ⚡ All UPI Cases
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      style={{ fontSize: '12px', padding: '6px 10px' }}
+                      onClick={() => handleSelectCategoryPreset('ABANDONMENT')}
+                    >
+                      🛒 Abandoned Carts
+                    </button>
+                  </div>
+                </div>
+
+                {/* Selected Summary Card */}
+                <div style={{
+                  backgroundColor: 'var(--bg-tertiary)',
+                  borderRadius: '10px',
+                  padding: '16px',
+                  border: '1px solid var(--border-color)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                  <div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Selected Cases</div>
+                    <div style={{ fontSize: '20px', fontWeight: 'bold', color: 'var(--accent-amber)', marginTop: '2px' }}>
+                      {selectedCaseIds.size} Cases
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Total Revenue at Risk</div>
+                    <div style={{ fontSize: '20px', fontWeight: 'bold', color: 'var(--accent-emerald)', marginTop: '2px' }}>
+                      ₹{totalAmount.toLocaleString('en-IN')}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Selected Cases List */}
+                <div className="form-group">
+                  <label>Selected Case IDs ({selectedCaseIds.size})</label>
+                  {selectedList.length === 0 ? (
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', padding: '12px', backgroundColor: 'var(--bg-tertiary)', borderRadius: '8px' }}>
+                      No cases selected yet. Click the preset buttons above or checkboxes on the Cases table.
+                    </div>
+                  ) : (
+                    <div style={{
+                      maxHeight: '160px',
+                      overflowY: 'auto',
+                      backgroundColor: 'var(--bg-tertiary)',
+                      borderRadius: '8px',
+                      padding: '8px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '6px'
+                    }}>
+                      {selectedList.map(c => (
+                        <div key={c.case_id} style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          padding: '6px 10px',
+                          backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                          borderRadius: '6px',
+                          fontSize: '12px'
+                        }}>
+                          <span style={{ fontWeight: '600' }}>{c.case_id}</span>
+                          <span style={{ color: 'var(--text-secondary)' }}>₹{c.payment?.amount?.toLocaleString('en-IN')}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleSelectCase(c.case_id)}
+                            style={{ background: 'transparent', border: 'none', color: 'var(--accent-rose)', cursor: 'pointer', padding: '2px' }}
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+              </div>
+
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setIsBatchBuilderOpen(false)}>
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  style={{ backgroundColor: 'var(--accent-amber)', borderColor: 'var(--accent-amber)', color: 'black', fontWeight: 'bold' }}
+                  disabled={selectedCaseIds.size === 0 || loading}
+                  onClick={handleCreateCustomBatchFromSelected}
+                >
+                  <Layers size={16} />
+                  Create Batch Portfolio ({selectedCaseIds.size})
+                </button>
+              </div>
+
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Batch Impact Modal */}
       {selectedBatchImpact && (
